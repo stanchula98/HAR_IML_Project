@@ -1,0 +1,366 @@
+---
+title: "HAR"
+always_allow_html: true
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  html_notebook: default
+---
+
+# Human Activity Recognition
+
+## EDA
+
+### Load the Data
+
+```{r}
+
+walkingAlex <- read.csv("~/Documents/Master - HealthCareIT/1. Semester/Introduction to ML/HAR_Project/normal activity/walking/Alex/sensor2 (9).csv")
+
+walkingUpstairsAlex <- read.csv("~/Documents/Master - HealthCareIT/1. Semester/Introduction to ML/HAR_Project/normal activity/walking upstairs/Alex/sensor2 (29).csv")
+
+squatsAlex <- read.csv("~/Documents/Master - HealthCareIT/1. Semester/Introduction to ML/HAR_Project/special activity/Squats/Alex/sensor2 (70).csv")
+
+jumpingJacksAlex <- read.csv("~/Documents/Master - HealthCareIT/1. Semester/Introduction to ML/HAR_Project/special activity/JumpingJacks/Alex/sensor2 (51).csv")
+
+
+head(walkingAlex)
+
+plot(walkingAlex$time, walkingAlex$atotal, type = "l")
+
+plot(walkingUpstairsAlex$time, walkingUpstairsAlex$atotal, type = "l")
+
+plot(squatsAlex$time, squatsAlex$atotal, type = "l")
+
+plot(jumpingJacksAlex$time, jumpingJacksAlex$atotal, type = "l")
+
+
+```
+
+```{r}
+library(dplyr)
+
+# Change here your working directory
+workingDir <- "~/Documents/Master - HealthCareIT/1. Semester/Introduction to ML/"
+
+walkingFilesName <- list.files(paste(workingDir, "HAR_Project/normal activity/walking/allData", sep = ""),full.names=TRUE)
+
+walkingDataFiles <- lapply(walkingFilesName, read.csv)
+
+walkingUpstairsFilesName <- list.files(paste(workingDir, "HAR_Project/normal activity/walking upstairs/allData", sep = ""),full.names=TRUE)
+
+walkingUpstairsDataFiles <- lapply(walkingUpstairsFilesName, read.csv)
+
+squatsFilesName <- list.files(paste(workingDir, "HAR_Project/special activity/Squats/allData", sep = ""),full.names=TRUE)
+
+squatsDataFiles <- lapply(squatsFilesName, read.csv)
+
+jumpingJackFilesName <- list.files(paste(workingDir, "HAR_Project/special activity/JumpingJacks/allData", sep = ""),full.names=TRUE)
+
+jumpingJackDataFiles <- lapply(jumpingJackFilesName, read.csv)
+
+allData <- c(walkingDataFiles, walkingDataFiles, squatsDataFiles, jumpingJackDataFiles)
+
+```
+
+```{r}
+calculateSmaAe <- function(eventDfList, windowsize){
+  SMAs <- c()
+  AEs <- c() 
+  
+  for (x in eventDfList) {
+  
+    currSmaMax <- 0
+    # calculating SMA & AE
+    for(i in 1:(nrow(x)/windowsize)){
+
+      ax <- 0
+      ay <- 0
+      az <- 0
+      
+
+      for(ac in (1+((i-1)*windowsize)):(windowsize*i)){
+        ax <- ax + abs( x$ax[ac]) 
+        ay <- ay + abs(x$ay[ac])
+        az <- az + abs(x$az[ac])
+      }
+      sma <- (ax+ay+az)/windowsize
+      
+      if(sma > currSmaMax){
+        currSmaMax <- sma
+
+        # calculating the AE for the max SMA
+        
+        ax <- 0
+        ay <- 0
+        az <- 0
+        
+        for(j in (1+((i-1)*windowsize)):(windowsize*i)){
+          ax <- ax + abs( x$ax[j])^2 
+          ay <- ay + abs(x$ay[j])^2
+          az <- az + abs(x$az[j])^2
+        }
+        ae <- (ax+ay+az)/3
+      }
+    }
+    
+    SMAs <- append(currSmaMax, SMAs)
+    AEs <- append(ae, AEs)
+    
+  }
+  
+  plot(SMAs, AEs)
+  tabl <- data.frame(SMAs, AEs)
+  return(tabl)
+}
+```
+
+## EDA
+
+### Normal Walking
+
+```{r}
+library(ggplot2)
+
+windowsize <- 10
+
+head(walkingDataFiles[[1]])
+w <- walkingDataFiles[[1]]
+
+atotalMeans <- c()
+atotalMedians <- c()
+atotalMins <- c()
+atotalMaxs <- c()
+SMAs <- c()
+AEs <- c() 
+
+for (x in walkingDataFiles) {
+  atotalMeans <- append(mean(x$atotal), atotalMeans)
+  atotalMedians <- append(median(x$atotal), atotalMedians)
+  atotalMins <- append(min(x$atotal), atotalMins)
+  atotalMaxs <- append(max(x$atotal), atotalMaxs)
+
+}
+
+walkingSmaAeDf <- calculateSmaAe(walkingDataFiles, windowsize)
+walkingSmaAeDf$class <- "walking"
+
+par(mfrow=c(2,2))
+boxplot(atotalMeans, main="Mean")
+boxplot(atotalMedians, main="Median")
+boxplot(atotalMins, main="Minimum")
+boxplot(atotalMaxs, main="Maximum")
+```
+
+### Walking upstairs
+
+```{r}
+atotalMeans <- c()
+atotalMedians <- c()
+atotalMins <- c()
+atotalMaxs <- c()
+
+for (x in walkingUpstairsDataFiles) {
+  
+  atotalMeans <- append(mean(x$atotal), atotalMeans)
+  atotalMedians <- append(median(x$atotal), atotalMedians)
+  atotalMins <- append(min(x$atotal), atotalMins)
+  atotalMaxs <- append(max(x$atotal), atotalMaxs)
+
+  
+  #lines(x$time, x$atotal, type = "l")
+}
+
+walkingUpstairsSmaAeDf <- calculateSmaAe(walkingUpstairsDataFiles, windowsize)
+walkingUpstairsSmaAeDf$class <- "walkingUpstairs"
+
+par(mfrow=c(2,2))
+boxplot(atotalMeans, main="Mean")
+boxplot(atotalMedians, main="Median")
+boxplot(atotalMins, main="Minimum")
+boxplot(atotalMaxs, main="Maximum")
+```
+
+### Jumping Jacks
+
+```{r}
+atotalMeans <- c()
+atotalMedians <- c()
+atotalMins <- c()
+atotalMaxs <- c()
+SMAs <- c()
+
+for (x in jumpingJackDataFiles) {
+  atotalMeans <- append(mean(x$atotal), atotalMeans)
+  atotalMedians <- append(median(x$atotal), atotalMedians)
+  atotalMins <- append(min(x$atotal), atotalMins)
+  atotalMaxs <- append(max(x$atotal), atotalMaxs)
+
+  ax <- 0
+  ay <- 0
+  az <- 0
+  for(ac in 1:nrow(x)){
+    ax <- ax + abs( x$ax[ac]) 
+    ay <- ay + abs(x$ay[ac])
+    az <- az + abs(x$az[ac])
+  }
+  
+  sma <- (ax+ay+az)/nrow(x)
+  SMAs <- append(sma, SMAs)
+  
+  #lines(x$time, x$atotal, type = "l")
+}
+
+jumpingJacksSmaAeDf <-  calculateSmaAe(jumpingJackDataFiles, windowsize)
+jumpingJacksSmaAeDf$class <- "jumpingJacks"
+
+plot(SMAs)
+
+par(mfrow=c(2,2))
+boxplot(atotalMeans, main="Mean")
+boxplot(atotalMedians, main="Median")
+boxplot(atotalMins, main="Minimum")
+boxplot(atotalMaxs, main="Maximum")
+```
+
+### Squats
+
+```{r}
+atotalMeans <- c()
+atotalMedians <- c()
+atotalMins <- c()
+atotalMaxs <- c()
+
+for (x in squatsDataFiles) {
+  atotalMeans <- append(mean(x$atotal), atotalMeans)
+  atotalMedians <- append(median(x$atotal), atotalMedians)
+  atotalMins <- append(min(x$atotal), atotalMins)
+  atotalMaxs <- append(max(x$atotal), atotalMaxs)
+
+  
+  #lines(x$time, x$atotal, type = "l")
+}
+
+squatsSmaAeDf <-  calculateSmaAe(squatsDataFiles, windowsize)
+squatsSmaAeDf$class <- "squats"
+
+par(mfrow=c(2,2))
+boxplot(atotalMeans, main="Mean")
+boxplot(atotalMedians, main="Median")
+boxplot(atotalMins, main="Minimum")
+boxplot(atotalMaxs, main="Maximum")
+```
+## SMA/AE Clustering
+
+```{r}
+allSmaAe <- rbind(walkingSmaAeDf, walkingUpstairsSmaAeDf, jumpingJacksSmaAeDf, squatsSmaAeDf)
+allSmaAe$class <- as.factor(allSmaAe$class)
+boxplot(allSmaAe$AEs)
+
+plot(allSmaAe$SMAs, allSmaAe$AEs,  col = allSmaAe$class)
+
+ggplot(allSmaAe, aes(SMAs, AEs, col=class)) + geom_point()
+```
+At this point we can nicely differentiate the jumping jacks with the SMA & AE, but the other ADLs can't be sperated good enough. 
+
+We have to find features for differentiate: squats, walking & walking upstairs.
+
+Let's look at the frequency analysis of these activities.
+
+```{r}
+library("signal")
+
+fs <- 100
+nyq <- fs/2
+
+# Walking
+plot(walkingAlex$time, walkingAlex$atotal, type = "l")
+
+fftWalkingAlex <- fft(walkingAlex$atotal)
+plot(abs(fftWalkingAlex), type = "l", xlab = "Frequency (Hz)", ylab = "Amplitude")
+
+fir <- fir1(230, c(0.8/nyq, 3.2/nyq), type = "pass")
+#bf <- butter(73, c(1/nyq, 4/nyq), type = "pass") 
+freqz(fir, Fs = fs)
+y <- filtfilt(fir, walkingAlex$atotal)
+plot(y, type = "l")
+
+plot(abs(fft(y)), type = "l", xlab = "Frequency (Hz)", ylab = "Amplitude", xlim = c(0,150))
+which.max(abs(fft(y))[1:500])
+
+# Walking upstairs
+plot(walkingUpstairsAlex$time, walkingUpstairsAlex$atotal, type = "l")
+y <- filtfilt(fir, walkingUpstairsAlex$atotal)
+plot(y, type = "l")
+
+plot(abs(fft(y)), type = "l", xlab = "Frequency (Hz)", ylab = "Amplitude", xlim = c(0,150))
+which.max(abs(fft(y))[1:500])
+
+# squats
+plot(squatsAlex$time, squatsAlex$atotal, type = "l")
+y <- filtfilt(fir, squatsAlex$atotal)
+plot(y, type = "l")
+
+plot(abs(fft(y)), type = "l", xlab = "Frequency (Hz)", ylab = "Amplitude", xlim = c(0,150))
+which.max(abs(fft(y))[1:500])
+
+
+```
+
+Regarding to the analysis of the different frequency, there could be probably a difference.
+Frequency with the max. Amplitude:
+- normal walking: 60
+- walking upstairs: 44
+- squats: 23
+
+Lets apply this to all of the data.
+
+```{r}
+fs <- 100
+nyq <- fs/2
+
+fir <- fir1(230, c(0.8/nyq, 3.2/nyq), type = "pass")
+
+# normal walking
+
+maxFreqWalking <- c()
+
+for (x in walkingDataFiles) {
+  y <- filtfilt(fir, x$atotal)
+  maxF <- which.max(abs(fft(y))[1:100])
+  maxFreqWalking <-  append(maxF, maxFreqWalking)
+}
+
+# walking upstairs
+
+maxFreqWalkingUpstairs <- c()
+
+for (x in walkingUpstairsDataFiles) {
+  y <- filtfilt(fir, x$atotal)
+  maxF <- which.max(abs(fft(y))[1:100])
+  maxFreqWalkingUpstairs <-  append(maxF, maxFreqWalkingUpstairs)
+}
+
+
+# squats
+
+maxFreqSquats <- c()
+
+for (x in squatsDataFiles) {
+  y <- filtfilt(fir, x$atotal)
+  maxF <- which.max(abs(fft(y))[1:100])
+  maxFreqSquats <-  append(maxF, maxFreqSquats)
+}
+
+
+par(mfrow=c(1,3))
+boxplot(maxFreqWalking, main="walking", ylim = c(10,70))
+boxplot(maxFreqWalkingUpstairs, main="walking upstairs", ylim = c(10,70))
+boxplot(maxFreqSquats, main="squats", ylim = c(10,70))
+
+```
+
+Looking at the boxplots, we can see a pretty nice separation from the different activities.
+
+
